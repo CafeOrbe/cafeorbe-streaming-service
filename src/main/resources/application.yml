@@ -1,0 +1,33 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: streaming-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/streaming_db}
+    username: ${DB_USER:streaming}
+    password: ${DB_PASSWORD:streaming}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  rabbitmq:
+    host: ${RABBIT_HOST:localhost}
+    port: ${RABBIT_PORT:5672}
+    username: ${RABBIT_USER:cafeorbe}
+    password: ${RABBIT_PASSWORD:cafeorbe}
+
+cafeorbe:
+  livekit:
+    # URL pública a la que se conecta el navegador (no la interna de Docker)
+    url: ${LIVEKIT_URL:ws://localhost:7880}
+    api-key: ${LIVEKIT_API_KEY:cafeorbe}
+    api-secret: ${LIVEKIT_API_SECRET:cafeorbe-livekit-dev-secret-cambiar-en-prod-0123456789}
+    minutos-de-vida-del-token: 120
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
