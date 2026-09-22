@@ -66,7 +66,7 @@ public class LiveKitProveedor implements ProveedorDeVideo {
                 .claim("video", permisos)
                 .notBefore(Date.from(ahora.minusSeconds(10)))
                 .expiration(Date.from(ahora.plus(vida)))
-                .signWith(clave)
+                .signWith(clave, Jwts.SIG.HS256)
                 .compact();
         return new Credenciales(url, token, sala);
     }
