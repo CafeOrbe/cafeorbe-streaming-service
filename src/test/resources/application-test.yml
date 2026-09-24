@@ -7,3 +7,9 @@ spring:
     listener:
       simple:
         auto-startup: false
+
+cafeorbe:
+  outbox:
+    scheduler: false
+  livekit:
+    api-url: http://localhost:1

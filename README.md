@@ -13,10 +13,14 @@ El video **no pasa por aquí**: lo mueve LiveKit (WebRTC). Este servicio entrega
 
 `provider/ProveedorDeVideo` es el único punto de contacto con el proveedor; `LiveKitProveedor` firma los tokens de acceso (JWT HS256) sin necesitar el SDK de LiveKit. Cambiar de proveedor = otra implementación de esa interfaz.
 
-## Limitaciones conocidas (MVP)
+| `POST /internal/livekit/webhook` | HU-11 | Webhooks de LiveKit, firmados con la clave de su API. No pasa por el api-gateway. |
 
-- No verifica con auction que el Subastador sea el dueño de esa subasta; solo exige el rol Subastador.
-- Si el broker está caído al iniciar/detener, el estado se guarda igual y el evento se pierde (los compradores lo ven al entrar, por `/estado`).
+## Reglas (hallazgos de la verificación de la HU-11)
+
+- **Dueño y estado (11, 17):** antes de iniciar se consulta `GET /api/subastas/{id}` en auction. Solo el `subastadorId` de la subasta puede transmitir (403 si no), no se puede transmitir en una subasta `FINALIZADA` o `DESIERTA` (409) ni en una inexistente (404). Si auction no responde, 503.
+- **El Subastador se va sin detener (12):** LiveKit avisa por webhook (`participant_left`, `track_unpublished` del video) y la transmisión se detiene desde el servidor, con su evento `TransmisionDetenida`.
+- **Eventos (14):** `TransmisionIniciada` y `TransmisionDetenida` se guardan en la tabla `outbox` en la misma transacción que el cambio de estado y los publica `OutboxPublisher`, igual que en auction. Si RabbitMQ está caído, se reintentan.
+- **Token del emisor tras detener (16):** al detener se cierra la sala de LiveKit (`DeleteRoom`). Si alguien vuelve a publicar sin una transmisión activa suya (por ejemplo, con el token viejo), se le expulsa (`RemoveParticipant`).
 
 ## Ejecutar
 
@@ -25,4 +29,4 @@ mvn spring-boot:run      # requiere Postgres (streaming_db), RabbitMQ y LiveKit 
 mvn test                 # H2, sin infraestructura
 ```
 
-Variables: `LIVEKIT_URL` (URL a la que se conecta el **navegador**), `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`.
+Variables: `LIVEKIT_URL` (URL a la que se conecta el **navegador**), `LIVEKIT_API_URL` (API de servidor de LiveKit vista desde este servicio), `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `AUCTION_URL`.
