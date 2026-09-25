@@ -13,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 
 import javax.crypto.SecretKey;
@@ -131,6 +132,9 @@ public class LiveKitProveedor implements ProveedorDeVideo {
                     .body(cuerpo)
                     .retrieve()
                     .toBodilessEntity();
+        } catch (HttpClientErrorException.NotFound e) {
+            // La sala o el participante ya no existen (nadie llegó a conectarse o ya se fue): es lo que se buscaba.
+            log.debug("LiveKit {}: {} ya no existía", metodo, cuerpo);
         } catch (RestClientException e) {
             // No bloquea al usuario: la transmisión ya quedó detenida en la base de datos.
             log.warn("LiveKit {} falló para {}: {}", metodo, cuerpo, e.getMessage());
