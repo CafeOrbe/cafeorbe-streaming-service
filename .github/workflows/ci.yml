@@ -84,6 +84,8 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           RABBIT_PASSWORD: ${{ secrets.RABBIT_PASSWORD }}
+          LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
+          LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
         run: |
           set -euo pipefail
 
@@ -116,9 +118,9 @@ jobs:
                 "RABBIT_VHOST=ebmfpsvi" \
                 "RABBIT_SSL=true" \
                 "AUCTION_URL=http://auction-service.internal.blackbay-48700ead.eastus2.azurecontainerapps.io" \
-                "LIVEKIT_URL=wss://PENDIENTE.livekit.cloud" \
-                "LIVEKIT_API_KEY=PENDIENTE" \
-                "LIVEKIT_API_SECRET=PENDIENTE"
+                "LIVEKIT_URL=${{ secrets.LIVEKIT_URL }}" \
+                "LIVEKIT_API_KEY=$LIVEKIT_API_KEY" \
+                "LIVEKIT_API_SECRET=$LIVEKIT_API_SECRET"
 
           else
 
@@ -145,9 +147,9 @@ jobs:
                 "RABBIT_VHOST=ebmfpsvi" \
                 "RABBIT_SSL=true" \
                 "AUCTION_URL=http://auction-service.internal.blackbay-48700ead.eastus2.azurecontainerapps.io" \
-                "LIVEKIT_URL=wss://PENDIENTE.livekit.cloud" \
-                "LIVEKIT_API_KEY=PENDIENTE" \
-                "LIVEKIT_API_SECRET=PENDIENTE"
+                "LIVEKIT_URL=${{ secrets.LIVEKIT_URL }}" \
+                "LIVEKIT_API_KEY=$LIVEKIT_API_KEY" \
+                "LIVEKIT_API_SECRET=$LIVEKIT_API_SECRET"
 
           fi
 
@@ -185,6 +187,8 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           RABBIT_PASSWORD: ${{ secrets.RABBIT_PASSWORD }}
+          LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
+          LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
         run: |
           set -euo pipefail
 
@@ -217,9 +221,9 @@ jobs:
                 "RABBIT_VHOST=ebmfpsvi" \
                 "RABBIT_SSL=true" \
                 "AUCTION_URL=http://auction-service.internal.thankfulmoss-4f48ec41.eastus2.azurecontainerapps.io" \
-                "LIVEKIT_URL=wss://PENDIENTE.livekit.cloud" \
-                "LIVEKIT_API_KEY=PENDIENTE" \
-                "LIVEKIT_API_SECRET=PENDIENTE"
+                "LIVEKIT_URL=${{ secrets.LIVEKIT_URL }}" \
+                "LIVEKIT_API_KEY=$LIVEKIT_API_KEY" \
+                "LIVEKIT_API_SECRET=$LIVEKIT_API_SECRET"
 
           else
 
@@ -246,9 +250,9 @@ jobs:
                 "RABBIT_VHOST=ebmfpsvi" \
                 "RABBIT_SSL=true" \
                 "AUCTION_URL=http://auction-service.internal.thankfulmoss-4f48ec41.eastus2.azurecontainerapps.io" \
-                "LIVEKIT_URL=wss://PENDIENTE.livekit.cloud" \
-                "LIVEKIT_API_KEY=PENDIENTE" \
-                "LIVEKIT_API_SECRET=PENDIENTE"
+                "LIVEKIT_URL=${{ secrets.LIVEKIT_URL }}" \
+                "LIVEKIT_API_KEY=$LIVEKIT_API_KEY" \
+                "LIVEKIT_API_SECRET=$LIVEKIT_API_SECRET"
 
           fi
 
