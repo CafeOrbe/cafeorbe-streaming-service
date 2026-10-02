@@ -125,7 +125,7 @@ Rutas bajo `/api/streaming/subastas/{subastaId}`, detrás del gateway.
 | `GET /estado` | Cualquier usuario autenticado | `{ transmitiendo, sala }` |
 | `GET /credenciales` | Cualquier usuario autenticado | Credenciales de solo lectura. `409` si no hay transmisión |
 
-Ruta fuera del gateway: `POST /internal/livekit/webhook`, llamada por LiveKit.
+Webhook de LiveKit, sin token de sesión y autenticado por firma: `POST /api/streaming/webhooks/livekit` (por el gateway, para LiveKit Cloud) y `POST /internal/livekit/webhook` (directo, para el LiveKit local).
 
 | HTTP | Cuándo | Mensaje |
 |:-:|---|---|
@@ -205,7 +205,7 @@ Cada token está limitado a **una sola sala**. El permiso de publicar lo decide 
 
 ## 7. Webhooks de LiveKit
 
-LiveKit llama directo a este servicio, sin pasar por el api-gateway, así que no hay usuario ni token de sesión. La petición se acepta **solo si viene firmada**.
+Quien llama es LiveKit, no un usuario, así que no hay token de sesión: la petición se acepta **solo si viene firmada**. En local LiveKit llama directo al servicio; en la nube puede entrar por el api-gateway, que deja pasar esa única ruta sin token.
 
 ```mermaid
 sequenceDiagram
@@ -215,7 +215,7 @@ sequenceDiagram
     participant PV as LiveKitProveedor
     participant TS as TransmisionService
 
-    LK->>WH: POST /internal/livekit/webhook con Authorization
+    LK->>WH: POST del webhook con Authorization
     WH->>PV: leerWebhook
     PV->>PV: Verifica la firma del JWT con el secreto de la API
     PV->>PV: Compara el hash SHA-256 del cuerpo con el del token
@@ -294,10 +294,10 @@ Una fila por subasta. El servicio **no guarda subastas**: auction-service es la 
 | `RABBIT_VHOST` `RABBIT_SSL` | `/` · `false` | Broker gestionado con TLS |
 | `AUCTION_URL` | `http://localhost:8082` | Consulta del dueño y el estado de la subasta |
 | `LIVEKIT_URL` | `ws://localhost:7880` | URL a la que se conecta el **navegador** |
-| `LIVEKIT_API_URL` | `http://localhost:7880` | API de servidor de LiveKit vista **desde este servicio** |
+| `LIVEKIT_API_URL` | se deduce de `LIVEKIT_URL` | API de servidor de LiveKit vista **desde este servicio**. Solo hace falta si es distinta |
 | `LIVEKIT_API_KEY` `LIVEKIT_API_SECRET` | valores de desarrollo | Firma de tokens y verificación de webhooks |
 
-`LIVEKIT_URL` y `LIVEKIT_API_URL` son distintas a propósito: la primera debe ser alcanzable desde el navegador del usuario y la segunda desde el servidor. En Docker local son `ws://localhost:7880` y `http://livekit:7880`.
+`LIVEKIT_URL` debe ser alcanzable desde el navegador del usuario y `LIVEKIT_API_URL` desde el servidor. Con LiveKit Cloud son el mismo host, y la segunda se deduce de la primera (`wss` → `https`). En Docker local son distintas: `ws://localhost:7880` y `http://livekit:7880`.
 
 ## 12. Ejecución y pruebas
 
@@ -333,10 +333,9 @@ El pipeline (`.github/workflows/ci.yml`) despliega en QA con cada cambio en `mai
 
 | Riesgo o deuda | Impacto | Acción propuesta |
 |---|---|---|
-| El pipeline no define `LIVEKIT_API_URL` | En Azure el servicio usaría el valor por defecto (`localhost`): cerrar salas y expulsar participantes fallaría en silencio, solo con un aviso en el log | Agregar la variable con la URL de la API de LiveKit Cloud |
-| El webhook debe estar configurado en LiveKit Cloud | Sin él, cerrar la pestaña deja la transmisión como activa | Registrar la URL pública de `/internal/livekit/webhook` en el proyecto de LiveKit y verificarlo |
-| El webhook obliga a que el servicio sea alcanzable desde internet | El resto de sus rutas confía en las cabeceras `X-User-*`, así que no debería ser público | Exponer solo `/internal/livekit/webhook`; ver `cafeorbe-infra`, riesgos 2 y 3 |
-| En la nube, `AUCTION_URL` usa `http` hacia un nombre interno | Por verificar: el ambiente redirige a `https` y el cliente no sigue la redirección, así que iniciar la transmisión respondería `503` | Probar en QA; ver `cafeorbe-infra`, riesgo 5 |
+| El webhook debe estar configurado en LiveKit Cloud | Sin él, cerrar la pestaña deja la transmisión como activa | Registrar en el proyecto de LiveKit la URL `https://<api-gateway>/api/streaming/webhooks/livekit` y verificarlo |
+| El servicio confía en las cabeceras `X-User-*` | Si es accesible desde fuera del gateway, cualquiera puede suplantar a un usuario | En el ambiente actual (express) el ingress interno no tiene efecto. Hace falta un secreto compartido entre el gateway y los servicios, o un ambiente con red propia |
+| En la nube, `AUCTION_URL` apuntaba a un nombre `.internal.` que no existe en el ambiente | No se podía verificar la subasta ni iniciar la transmisión | Corregido y verificado en QA: `https` con el nombre real de la aplicación |
 | El token del emisor dura 120 min | Tras detener, sigue siendo válido; se mitiga cerrando la sala y expulsando a quien republique | Tokens de vida más corta |
 | Prueba manual de video pendiente | No hay evidencia de los escenarios de HU-11 con cámara real | Ejecutarla con dos navegadores antes de la demo |
 | QA y PROD comparten base de datos y broker en el pipeline | Estados de transmisión mezclados entre ambientes | Separar bases y vhost por ambiente |
