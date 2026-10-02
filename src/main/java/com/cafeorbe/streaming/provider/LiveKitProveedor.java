@@ -61,7 +61,18 @@ public class LiveKitProveedor implements ProveedorDeVideo {
         var fabrica = new SimpleClientHttpRequestFactory();
         fabrica.setConnectTimeout(1000);
         fabrica.setReadTimeout(3000);
-        this.api = RestClient.builder().baseUrl(apiUrl).requestFactory(fabrica).build();
+        this.api = RestClient.builder().baseUrl(urlDeLaApi(url, apiUrl)).requestFactory(fabrica).build();
+    }
+
+    /**
+     * La API de servidor vive en el mismo host que usa el navegador, con http(s) en lugar de ws(s). Solo hace
+     * falta indicarla aparte cuando el servicio alcanza a LiveKit por otra dirección (por ejemplo, dentro de Docker).
+     */
+    public static String urlDeLaApi(String url, String apiUrl) {
+        if (apiUrl != null && !apiUrl.isBlank()) {
+            return apiUrl;
+        }
+        return url.replaceFirst("^ws", "http");
     }
 
     @Override

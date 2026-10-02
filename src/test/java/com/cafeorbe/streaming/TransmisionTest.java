@@ -111,13 +111,17 @@ class TransmisionTest {
 
     /** Envía un webhook firmado igual que LiveKit: JWT con el hash SHA-256 del cuerpo. */
     private ResultActions webhook(String cuerpo, String secreto) throws Exception {
+        return webhook("/internal/livekit/webhook", cuerpo, secreto);
+    }
+
+    private ResultActions webhook(String ruta, String cuerpo, String secreto) throws Exception {
         byte[] bytes = cuerpo.getBytes(StandardCharsets.UTF_8);
         String hash = Base64.getEncoder().encodeToString(MessageDigest.getInstance("SHA-256").digest(bytes));
         String firma = Jwts.builder().issuer("cafeorbe").claim("sha256", hash)
                 .expiration(Date.from(Instant.now().plusSeconds(300)))
                 .signWith(Keys.hmacShaKeyFor(secreto.getBytes(StandardCharsets.UTF_8)), Jwts.SIG.HS256)
                 .compact();
-        return mvc.perform(post("/internal/livekit/webhook").contentType("application/webhook+json")
+        return mvc.perform(post(ruta).contentType("application/webhook+json")
                 .header("Authorization", firma).content(bytes));
     }
 
@@ -327,6 +331,30 @@ class TransmisionTest {
                 .andExpect(status().isUnauthorized());
 
         estadoEsperado(true);
+    }
+
+    @Test
+    @DisplayName("El webhook también llega por la ruta que expone el api-gateway, con la misma exigencia de firma")
+    void webhookPorElGateway() throws Exception {
+        String ruta = "/api/streaming/webhooks/livekit";
+        iniciarComoLuis();
+        webhook(ruta, evento("track_published", LUIS, "PA_1", "VIDEO"), SECRETO).andExpect(status().isOk());
+
+        mvc.perform(post(ruta).contentType("application/webhook+json")
+                        .content(evento("participant_left", LUIS, "PA_1", null)))
+                .andExpect(status().isUnauthorized());
+        estadoEsperado(true);
+
+        webhook(ruta, evento("participant_left", LUIS, "PA_1", null), SECRETO).andExpect(status().isOk());
+        estadoEsperado(false);
+    }
+
+    @Test
+    @DisplayName("La URL de la API de LiveKit se deduce de la del navegador si no se indica otra")
+    void urlDeLaApiDeLiveKit() {
+        assertThat(LiveKitProveedor.urlDeLaApi("wss://proyecto.livekit.cloud", "")).isEqualTo("https://proyecto.livekit.cloud");
+        assertThat(LiveKitProveedor.urlDeLaApi("ws://localhost:7880", null)).isEqualTo("http://localhost:7880");
+        assertThat(LiveKitProveedor.urlDeLaApi("ws://localhost:7880", "http://livekit:7880")).isEqualTo("http://livekit:7880");
     }
 
     // ── Hallazgo 16: token del emisor después de detener ─────────────────

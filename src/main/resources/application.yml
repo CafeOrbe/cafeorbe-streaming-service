@@ -28,8 +28,9 @@ cafeorbe:
     api-key: ${LIVEKIT_API_KEY:cafeorbe}
     api-secret: ${LIVEKIT_API_SECRET:cafeorbe-livekit-dev-secret-cambiar-en-prod-0123456789}
     minutos-de-vida-del-token: 120
-    # URL de la API de servidor de LiveKit vista desde este servicio (cerrar salas, expulsar participantes)
-    api-url: ${LIVEKIT_API_URL:http://localhost:7880}
+    # URL de la API de servidor de LiveKit vista desde este servicio (cerrar salas, expulsar participantes).
+    # Vacía: se deduce de LIVEKIT_URL (ws → http, wss → https), que es lo correcto con LiveKit Cloud.
+    api-url: ${LIVEKIT_API_URL:}
   auction:
     # Hallazgos 11 y 17: se consulta el dueño y el estado de la subasta antes de transmitir
     url: ${AUCTION_URL:http://localhost:8082}
