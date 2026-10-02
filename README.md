@@ -313,7 +313,7 @@ mvn test                 # 19 pruebas con H2 en memoria: no necesita infraestruc
 | `TransmisionTest` | 16 | Inicio, detención, permisos, contenido de los tokens, outbox, webhooks firmados y expulsión |
 | `SubastasClientTest` | 3 | La consulta a auction: respuesta normal, subasta inexistente y servicio caído |
 
-**Lo que las pruebas automáticas no cubren:** el video real y el permiso de cámara dependen del navegador y de LiveKit. Los tres escenarios de HU-11 requieren una prueba manual con dos navegadores, emisor y receptor a la vez.
+**Lo que las pruebas automáticas no cubren:** el video real y el permiso de cámara dependen del navegador y de LiveKit. Los tres escenarios de HU-11 requieren una prueba manual con dos navegadores, emisor y receptor a la vez. La transmisión con cámara real se probó a mano el 2026-10-01.
 
 ## 13. Despliegue
 
@@ -337,7 +337,6 @@ El pipeline (`.github/workflows/ci.yml`) despliega en QA con cada cambio en `mai
 | El servicio confía en las cabeceras `X-User-*` | Si es accesible desde fuera del gateway, cualquiera puede suplantar a un usuario | En el ambiente actual (express) el ingress interno no tiene efecto. Hace falta un secreto compartido entre el gateway y los servicios, o un ambiente con red propia |
 | En la nube, `AUCTION_URL` apuntaba a un nombre `.internal.` que no existe en el ambiente | No se podía verificar la subasta ni iniciar la transmisión | Corregido y verificado en QA: `https` con el nombre real de la aplicación |
 | El token del emisor dura 120 min | Tras detener, sigue siendo válido; se mitiga cerrando la sala y expulsando a quien republique | Tokens de vida más corta |
-| Prueba manual de video pendiente | No hay evidencia de los escenarios de HU-11 con cámara real | Ejecutarla con dos navegadores antes de la demo |
 | QA y PROD comparten base de datos y broker en el pipeline | Estados de transmisión mezclados entre ambientes | Separar bases y vhost por ambiente |
 | La outbox no se purga | La tabla crece indefinidamente | Limpieza de eventos ya publicados |
 
