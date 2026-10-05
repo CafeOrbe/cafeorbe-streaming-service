@@ -371,4 +371,68 @@ class TransmisionTest {
         verify(proveedor).expulsar(SUBASTA, LUIS.toString());
         estadoEsperado(false);
     }
+
+    // ── Eventos de sala que no deben detener ni expulsar ──────────────────
+
+    @Test
+    @DisplayName("room_finished con transmision activa: la sala se cierra sola y la transmision se detiene")
+    void salaCerradaDetieneLaTransmision() throws Exception {
+        iniciarComoLuis();
+
+        webhook(evento("room_finished", LUIS, "PA_1", null)).andExpect(status().isOk());
+
+        verify(proveedor).cerrarSala(SUBASTA);
+        estadoEsperado(false);
+        assertThat(tiposEnOutbox()).contains(Eventos.TRANSMISION_DETENIDA);
+    }
+
+    @Test
+    @DisplayName("room_finished sin transmision registrada: no intenta cerrar nada")
+    void salaCerradaSinTransmision() throws Exception {
+        webhook(evento("room_finished", LUIS, "PA_1", null)).andExpect(status().isOk());
+
+        verify(proveedor, never()).cerrarSala(any());
+    }
+
+    @Test
+    @DisplayName("Retirar una pista de audio no detiene la transmision: solo cuenta la de video")
+    void retirarAudioNoDetiene() throws Exception {
+        iniciarComoLuis();
+        webhook(evento("track_published", LUIS, "PA_1", "VIDEO")).andExpect(status().isOk());
+
+        webhook(evento("track_unpublished", LUIS, "PA_1", "AUDIO")).andExpect(status().isOk());
+
+        estadoEsperado(true);
+        verify(proveedor, never()).cerrarSala(any());
+    }
+
+    @Test
+    @DisplayName("Un evento que no es de los cinco conocidos se ignora sin tocar la transmision")
+    void eventoDesconocidoSeIgnora() throws Exception {
+        iniciarComoLuis();
+
+        webhook(evento("track_muted", LUIS, "PA_1", null)).andExpect(status().isOk());
+
+        estadoEsperado(true);
+        verify(proveedor, never()).cerrarSala(any());
+        verify(proveedor, never()).expulsar(any(), anyString());
+    }
+
+    @Test
+    @DisplayName("Publicar video con la transmision detenida expulsa, y con ella activa y siendo el dueno no")
+    void publicarSinTransmisionExpulsa() throws Exception {
+        // Sin iniciar: nadie es emisor, asi que publicar video es sospechoso y se expulsa.
+        webhook(evento("track_published", MARTA, "PA_9", "VIDEO")).andExpect(status().isOk());
+
+        verify(proveedor).expulsar(SUBASTA, MARTA.toString());
+    }
+
+    @Test
+    @DisplayName("Una subasta que no es UUID en la ruta responde 400 con el formato uniforme de error")
+    void subastaNoEsUuidEnLaRuta() throws Exception {
+        mvc.perform(como(get("/api/streaming/subastas/no-es-uuid/estado"), ANA, "Ana", "COMPRADOR"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.mensaje").value("La solicitud no es válida"));
+    }
 }
