@@ -90,4 +90,16 @@ class SubastasClientTest {
                 .isInstanceOf(ErrorDeNegocio.class)
                 .extracting(e -> ((ErrorDeNegocio) e).getEstado()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
     }
+
+    @Test
+    @DisplayName("Auction responde 200 sin cuerpo → 503, un 200 vacío tampoco autoriza a transmitir")
+    void respuestaVacia() {
+        estado = 200;
+        cuerpo = "";
+
+        assertThatThrownBy(() -> cliente().consultar(SUBASTA, USUARIO))
+                .isInstanceOf(ErrorDeNegocio.class)
+                .hasMessage("No se pudo verificar la subasta, intenta de nuevo")
+                .extracting(e -> ((ErrorDeNegocio) e).getEstado()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+    }
 }
