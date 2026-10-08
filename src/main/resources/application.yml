@@ -39,6 +39,12 @@ cafeorbe:
   outbox:
     scheduler: true
     intervalo-ms: 200
+  transmision:
+    # Hallazgo 12: si el video del emisor deja de llegar, se espera este tiempo a que vuelva antes de detener.
+    # Un microcorte de red o una reconexión de LiveKit se resuelven en pocos segundos.
+    gracia-segundos: ${TRANSMISION_GRACIA_SEGUNDOS:20}
+    scheduler: true
+    intervalo-ms: 5000
 
 management:
   endpoints:

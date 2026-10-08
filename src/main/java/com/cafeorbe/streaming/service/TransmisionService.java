@@ -13,12 +13,15 @@ import com.cafeorbe.streaming.provider.ProveedorDeVideo.Credenciales;
 import com.cafeorbe.streaming.provider.ProveedorDeVideo.EventoDeSala;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.UUID;
 
 /** HU-11: iniciar y detener la transmisión, y entregar credenciales de la sala de video. */
@@ -35,14 +38,17 @@ public class TransmisionService {
     private final SubastasClient subastas;
     private final OutboxWriter eventos;
     private final Clock reloj;
+    private final Duration gracia;
 
     public TransmisionService(TransmisionRepository transmisiones, ProveedorDeVideo video, SubastasClient subastas,
-                              OutboxWriter eventos, Clock reloj) {
+                              OutboxWriter eventos, Clock reloj,
+                              @Value("${cafeorbe.transmision.gracia-segundos}") long graciaSegundos) {
         this.transmisiones = transmisiones;
         this.video = video;
         this.subastas = subastas;
         this.eventos = eventos;
         this.reloj = reloj;
+        this.gracia = Duration.ofSeconds(graciaSegundos);
     }
 
     /**
@@ -68,6 +74,10 @@ public class TransmisionService {
             transmisiones.save(t);
             eventos.registrar(Eventos.TRANSMISION_INICIADA,
                     new TransmisionIniciada(subastaId, video.nombreDeSala(subastaId)));
+        } else if (t.getEmisorAusenteDesde() != null) {
+            // Vuelve tras un corte: se le da el plazo completo para publicar de nuevo antes de detener.
+            t.emisorReconectando(reloj.instant());
+            transmisiones.save(t);
         }
         return video.credencialesDeEmisor(subastaId, usuario.id(), usuario.nombre());
     }
@@ -102,8 +112,9 @@ public class TransmisionService {
     /**
      * Eventos que el proveedor de video envía por webhook.
      * <ul>
-     *   <li>Hallazgo 12: si el Subastador cierra la pestaña o pierde la conexión, LiveKit avisa que salió
-     *       y la transmisión se detiene desde el servidor.</li>
+     *   <li>Hallazgo 12: si el Subastador cierra la pestaña o pierde la conexión, LiveKit avisa que salió.
+     *       No se detiene al instante: un microcorte de red también llega así, y cortar ahí dejaba a todos sin
+     *       video. Se anota la ausencia y {@link #detenerAbandonadas} la detiene si no vuelve a publicar a tiempo.</li>
      *   <li>Hallazgo 16: si alguien publica video sin una transmisión activa suya (por ejemplo, con un token
      *       viejo tras detener), se le saca de la sala.</li>
      * </ul>
@@ -126,12 +137,12 @@ public class TransmisionService {
             }
             case PISTA_RETIRADA -> {
                 if (evento.pistaDeVideo() && t != null && t.esElEmisor(evento.participanteSid())) {
-                    detenerYAvisar(t);
+                    marcarAusente(t);
                 }
             }
             case PARTICIPANTE_SALIO -> {
                 if (t != null && t.esElEmisor(evento.participanteSid())) {
-                    detenerYAvisar(t);
+                    marcarAusente(t);
                 }
             }
             case SALA_CERRADA -> {
@@ -143,6 +154,28 @@ public class TransmisionService {
                 // Nada que hacer.
             }
         }
+    }
+
+    private void marcarAusente(Transmision t) {
+        t.marcarEmisorAusente(reloj.instant());
+        transmisiones.save(t);
+        log.info("Subasta {}: el emisor dejó de publicar; se detendrá si no vuelve en {} s", t.getSubastaId(),
+                gracia.toSeconds());
+    }
+
+    /**
+     * Detiene las transmisiones cuyo emisor lleva ausente más que el periodo de gracia (hallazgo 12).
+     *
+     * @return cantidad de transmisiones detenidas en esta pasada
+     */
+    @Transactional
+    public int detenerAbandonadas(Instant ahora) {
+        var abandonadas = transmisiones.findByActivaTrueAndEmisorAusenteDesdeLessThanEqual(ahora.minus(gracia));
+        for (Transmision t : abandonadas) {
+            log.info("Subasta {}: el emisor no volvió; se detiene la transmisión", t.getSubastaId());
+            detenerYAvisar(t);
+        }
+        return abandonadas.size();
     }
 
     /** Detiene, guarda el evento en la outbox y, cuando se confirma la transacción, cierra la sala de video. */

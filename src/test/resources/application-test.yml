@@ -11,5 +11,7 @@ spring:
 cafeorbe:
   outbox:
     scheduler: false
+  transmision:
+    scheduler: false
   livekit:
     api-url: http://localhost:1
