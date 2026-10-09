@@ -70,8 +70,10 @@ jobs:
           password: ${{ secrets.ACR_PASSWORD }}
 
       - name: Build & push image
+        env:
+          ACR_NAME: ${{ secrets.ACR_NAME }}
         run: |
-          IMG=${{ secrets.ACR_NAME }}.azurecr.io/streaming-service
+          IMG=$ACR_NAME.azurecr.io/streaming-service
           docker build -t $IMG:${{ github.sha }} -t $IMG:latest .
           docker push $IMG:${{ github.sha }}
           docker push $IMG:latest
