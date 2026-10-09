@@ -91,6 +91,7 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           RABBIT_PASSWORD: ${{ secrets.RABBIT_PASSWORD }}
+          LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
           LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
           LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
         run: |
@@ -125,7 +126,7 @@ jobs:
                 "RABBIT_VHOST=ebmfpsvi" \
                 "RABBIT_SSL=true" \
                 "AUCTION_URL=https://auction-service.blackbay-48700ead.eastus2.azurecontainerapps.io" \
-                "LIVEKIT_URL=${{ secrets.LIVEKIT_URL }}" \
+                "LIVEKIT_URL=$LIVEKIT_URL" \
                 "LIVEKIT_API_KEY=$LIVEKIT_API_KEY" \
                 "LIVEKIT_API_SECRET=$LIVEKIT_API_SECRET"
 
@@ -154,7 +155,7 @@ jobs:
                 "RABBIT_VHOST=ebmfpsvi" \
                 "RABBIT_SSL=true" \
                 "AUCTION_URL=https://auction-service.blackbay-48700ead.eastus2.azurecontainerapps.io" \
-                "LIVEKIT_URL=${{ secrets.LIVEKIT_URL }}" \
+                "LIVEKIT_URL=$LIVEKIT_URL" \
                 "LIVEKIT_API_KEY=$LIVEKIT_API_KEY" \
                 "LIVEKIT_API_SECRET=$LIVEKIT_API_SECRET"
 
@@ -162,7 +163,6 @@ jobs:
 
       - name: Smoke test
         run: |
-          # Petición real a través del api-gateway, como lo usa el frontend: comprueba el servicio y su enrutamiento.
           GW=$(az containerapp show \
             --name api-gateway \
             --resource-group cafeorbe-org \
@@ -170,7 +170,6 @@ jobs:
             --output tsv)
 
           for i in $(seq 1 12); do
-            # Sesión del usuario fijo "smoke-ci": se crea una sola vez y se reutiliza en cada despliegue.
             TOKEN=$(curl --silent --max-time 10 \
               --request POST "https://$GW/api/sesion" \
               --header 'Content-Type: application/json' \
@@ -204,6 +203,7 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           RABBIT_PASSWORD: ${{ secrets.RABBIT_PASSWORD }}
+          LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
           LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
           LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
         run: |
@@ -238,7 +238,7 @@ jobs:
                 "RABBIT_VHOST=ebmfpsvi" \
                 "RABBIT_SSL=true" \
                 "AUCTION_URL=https://auction-service-prod.thankfulmoss-4f48ec41.eastus2.azurecontainerapps.io" \
-                "LIVEKIT_URL=${{ secrets.LIVEKIT_URL }}" \
+                "LIVEKIT_URL=$LIVEKIT_URL" \
                 "LIVEKIT_API_KEY=$LIVEKIT_API_KEY" \
                 "LIVEKIT_API_SECRET=$LIVEKIT_API_SECRET"
 
@@ -267,7 +267,7 @@ jobs:
                 "RABBIT_VHOST=ebmfpsvi" \
                 "RABBIT_SSL=true" \
                 "AUCTION_URL=https://auction-service-prod.thankfulmoss-4f48ec41.eastus2.azurecontainerapps.io" \
-                "LIVEKIT_URL=${{ secrets.LIVEKIT_URL }}" \
+                "LIVEKIT_URL=$LIVEKIT_URL" \
                 "LIVEKIT_API_KEY=$LIVEKIT_API_KEY" \
                 "LIVEKIT_API_SECRET=$LIVEKIT_API_SECRET"
 
@@ -275,7 +275,6 @@ jobs:
 
       - name: Smoke test
         run: |
-          # Petición real a través del api-gateway, como lo usa el frontend: comprueba el servicio y su enrutamiento.
           GW=$(az containerapp show \
             --name api-gateway-prod \
             --resource-group cafeorbe-org \
@@ -283,7 +282,6 @@ jobs:
             --output tsv)
 
           for i in $(seq 1 12); do
-            # Sesión del usuario fijo "smoke-ci": se crea una sola vez y se reutiliza en cada despliegue.
             TOKEN=$(curl --silent --max-time 10 \
               --request POST "https://$GW/api/sesion" \
               --header 'Content-Type: application/json' \
