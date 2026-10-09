@@ -33,6 +33,10 @@ public class Transmision {
     @Column(name = "emisor_sid", length = 64)
     private String emisorSid;
 
+    /** Desde cuándo falta el video del emisor; {@code null} mientras publica con normalidad. */
+    @Column(name = "emisor_ausente_desde")
+    private Instant emisorAusenteDesde;
+
     protected Transmision() {
     }
 
@@ -47,16 +51,33 @@ public class Transmision {
         this.iniciadaEn = ahora;
         this.detenidaEn = null;
         this.emisorSid = null;
+        this.emisorAusenteDesde = null;
     }
 
     public void detener(Instant ahora) {
         this.activa = false;
         this.detenidaEn = ahora;
         this.emisorSid = null;
+        this.emisorAusenteDesde = null;
     }
 
     public void registrarEmisor(String sid) {
         this.emisorSid = sid;
+        this.emisorAusenteDesde = null;
+    }
+
+    /** El video del emisor dejó de llegar. Si ya estaba ausente se conserva el primer instante. */
+    public void marcarEmisorAusente(Instant ahora) {
+        if (emisorAusenteDesde == null) {
+            emisorAusenteDesde = ahora;
+        }
+    }
+
+    /** El Subastador volvió a pedir credenciales: está reconectando, el plazo de ausencia empieza de nuevo. */
+    public void emisorReconectando(Instant ahora) {
+        if (emisorAusenteDesde != null) {
+            emisorAusenteDesde = ahora;
+        }
     }
 
     /** ¿Esta sesión de LiveKit es la que está emitiendo el video ahora mismo? */
@@ -78,5 +99,9 @@ public class Transmision {
 
     public String getEmisorSid() {
         return emisorSid;
+    }
+
+    public Instant getEmisorAusenteDesde() {
+        return emisorAusenteDesde;
     }
 }

@@ -10,6 +10,7 @@ import com.cafeorbe.streaming.outbox.OutboxPublisher;
 import com.cafeorbe.streaming.outbox.OutboxRepository;
 import com.cafeorbe.streaming.provider.LiveKitProveedor;
 import com.cafeorbe.streaming.service.TransmisionRepository;
+import com.cafeorbe.streaming.service.TransmisionService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -64,6 +65,7 @@ class TransmisionTest {
 
     @Autowired MockMvc mvc;
     @Autowired TransmisionRepository transmisiones;
+    @Autowired TransmisionService servicio;
     @Autowired OutboxRepository outbox;
     @Autowired OutboxPublisher publicador;
     @MockitoSpyBean LiveKitProveedor proveedor;
@@ -283,8 +285,13 @@ class TransmisionTest {
 
     // ── Hallazgo 12: el Subastador se va sin pulsar "Detener" ─────────────
 
+    /** Pasa el tiempo sin que el emisor vuelva: lo que haría el programador al cumplirse el plazo. */
+    private int pasan(long segundos) {
+        return servicio.detenerAbandonadas(Instant.now().plusSeconds(segundos));
+    }
+
     @Test
-    @DisplayName("Hallazgo 12 · Si el emisor sale de la sala de LiveKit (cierra la pestaña), la transmisión se detiene y se avisa")
+    @DisplayName("Hallazgo 12 · Si el emisor sale de la sala de LiveKit (cierra la pestaña) y no vuelve, la transmisión se detiene y se avisa")
     void emisorSaleDeLaSala() throws Exception {
         iniciarComoLuis();
         webhook(evento("track_published", LUIS, "PA_1", "VIDEO")).andExpect(status().isOk());
@@ -292,18 +299,64 @@ class TransmisionTest {
 
         webhook(evento("participant_left", LUIS, "PA_1", null)).andExpect(status().isOk());
 
+        // Dentro del periodo de gracia (20 s) todavía puede ser un microcorte: sigue activa y nadie pierde el video.
+        assertThat(pasan(10)).isZero();
+        estadoEsperado(true);
+        verify(proveedor, never()).cerrarSala(any());
+
+        assertThat(pasan(21)).isEqualTo(1);
         estadoEsperado(false);
         assertThat(tiposEnOutbox()).containsExactly(Eventos.TRANSMISION_INICIADA, Eventos.TRANSMISION_DETENIDA);
         verify(proveedor).cerrarSala(SUBASTA);
+        // Ya detenida no se vuelve a detener en la siguiente pasada.
+        assertThat(pasan(60)).isZero();
     }
 
     @Test
-    @DisplayName("Hallazgo 12 · Si el emisor deja de publicar su video, la transmisión se detiene")
+    @DisplayName("Hallazgo 12 · Si el emisor deja de publicar su video y no vuelve, la transmisión se detiene")
     void emisorRetiraElVideo() throws Exception {
         iniciarComoLuis();
         webhook(evento("track_published", LUIS, "PA_1", "VIDEO")).andExpect(status().isOk());
         webhook(evento("track_unpublished", LUIS, "PA_1", "VIDEO")).andExpect(status().isOk());
+        estadoEsperado(true);
+
+        pasan(21);
         estadoEsperado(false);
+    }
+
+    @Test
+    @DisplayName("Un microcorte del emisor no corta la transmisión: si vuelve a publicar dentro del plazo, sigue en vivo")
+    void microcorteDelEmisor() throws Exception {
+        iniciarComoLuis();
+        webhook(evento("track_published", LUIS, "PA_1", "VIDEO")).andExpect(status().isOk());
+
+        // LiveKit reconecta al emisor con una sesión nueva: retira la pista vieja y publica otra.
+        webhook(evento("track_unpublished", LUIS, "PA_1", "VIDEO")).andExpect(status().isOk());
+        webhook(evento("participant_left", LUIS, "PA_1", null)).andExpect(status().isOk());
+        webhook(evento("track_published", LUIS, "PA_2", "VIDEO")).andExpect(status().isOk());
+
+        assertThat(pasan(120)).isZero();
+        estadoEsperado(true);
+        assertThat(tiposEnOutbox()).containsExactly(Eventos.TRANSMISION_INICIADA);
+        verify(proveedor, never()).cerrarSala(any());
+        assertThat(transmisiones.findById(SUBASTA).orElseThrow().getEmisorSid()).isEqualTo("PA_2");
+    }
+
+    @Test
+    @DisplayName("Si el Subastador vuelve a pedir credenciales tras un corte, el plazo para publicar empieza de nuevo")
+    void reconexionReiniciaElPlazo() throws Exception {
+        iniciarComoLuis();
+        webhook(evento("track_published", LUIS, "PA_1", "VIDEO")).andExpect(status().isOk());
+        webhook(evento("participant_left", LUIS, "PA_1", null)).andExpect(status().isOk());
+        var t = transmisiones.findById(SUBASTA).orElseThrow();
+        t.emisorReconectando(Instant.now().minusSeconds(60));
+        transmisiones.save(t);
+
+        iniciarComoLuis();
+
+        assertThat(pasan(10)).isZero();
+        estadoEsperado(true);
+        assertThat(tiposEnOutbox()).containsExactly(Eventos.TRANSMISION_INICIADA);
     }
 
     @Test
@@ -346,7 +399,7 @@ class TransmisionTest {
         estadoEsperado(true);
 
         webhook(ruta, evento("participant_left", LUIS, "PA_1", null), SECRETO).andExpect(status().isOk());
-        estadoEsperado(false);
+        assertThat(transmisiones.findById(SUBASTA).orElseThrow().getEmisorAusenteDesde()).isNotNull();
     }
 
     @Test

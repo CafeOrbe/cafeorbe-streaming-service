@@ -133,6 +133,7 @@ class LiveKitProveedorTest {
             return video(token).get(claim);
         }
 
+        @SuppressWarnings("unchecked")
         private java.util.Map<String, Object> video(String token) {
             return claims(token).get("video", java.util.Map.class);
         }
