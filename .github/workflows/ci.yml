@@ -106,62 +106,36 @@ jobs:
 
           az extension add --name containerapp --upgrade --only-show-errors
 
-          if az containerapp show \
+          if ! az containerapp show \
               --name "$APP_NAME" \
               --resource-group "$RESOURCE_GROUP" \
               --only-show-errors >/dev/null 2>&1; then
-
-            az containerapp update \
-              --name "$APP_NAME" \
-              --resource-group "$RESOURCE_GROUP" \
-              --image "$IMAGE" \
-              --min-replicas 1 \
-              --set-env-vars \
-                "JWT_SECRET=$JWT_SECRET" \
-                "DB_URL=jdbc:postgresql://cafeorbe-pg.postgres.database.azure.com:5432/streaming_db" \
-                "DB_USER=cafeorbe" \
-                "DB_PASSWORD=$DB_PASSWORD" \
-                "RABBIT_HOST=toucan.lmq.cloudamqp.com" \
-                "RABBIT_PORT=5671" \
-                "RABBIT_USER=ebmfpsvi" \
-                "RABBIT_PASSWORD=$RABBIT_PASSWORD" \
-                "RABBIT_VHOST=ebmfpsvi" \
-                "RABBIT_SSL=true" \
-                "AUCTION_URL=https://auction-service.blackbay-48700ead.eastus2.azurecontainerapps.io" \
-                "LIVEKIT_URL=$LIVEKIT_URL" \
-                "LIVEKIT_API_KEY=$LIVEKIT_API_KEY" \
-                "LIVEKIT_API_SECRET=$LIVEKIT_API_SECRET"
-
-          else
-
-            az containerapp create \
-              --name "$APP_NAME" \
-              --resource-group "$RESOURCE_GROUP" \
-              --environment "$CONTAINER_ENV" \
-              --image "$IMAGE" \
-              --ingress external \
-              --target-port 8084 \
-              --min-replicas 1 \
-              --registry-server "${{ vars.ACR_NAME }}.azurecr.io" \
-              --registry-username "${{ secrets.ACR_USERNAME }}" \
-              --registry-password "${{ secrets.ACR_PASSWORD }}" \
-              --env-vars \
-                "JWT_SECRET=$JWT_SECRET" \
-                "DB_URL=jdbc:postgresql://cafeorbe-pg.postgres.database.azure.com:5432/streaming_db" \
-                "DB_USER=cafeorbe" \
-                "DB_PASSWORD=$DB_PASSWORD" \
-                "RABBIT_HOST=toucan.lmq.cloudamqp.com" \
-                "RABBIT_PORT=5671" \
-                "RABBIT_USER=ebmfpsvi" \
-                "RABBIT_PASSWORD=$RABBIT_PASSWORD" \
-                "RABBIT_VHOST=ebmfpsvi" \
-                "RABBIT_SSL=true" \
-                "AUCTION_URL=https://auction-service.blackbay-48700ead.eastus2.azurecontainerapps.io" \
-                "LIVEKIT_URL=$LIVEKIT_URL" \
-                "LIVEKIT_API_KEY=$LIVEKIT_API_KEY" \
-                "LIVEKIT_API_SECRET=$LIVEKIT_API_SECRET"
-
+            echo "La app $APP_NAME no existe en $RESOURCE_GROUP."
+            echo "Provisionar apps es tarea de cafeorbe-infra, no de este pipeline."
+            exit 1
           fi
+
+          az containerapp update \
+            --name "$APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --image "$IMAGE" \
+            --min-replicas 1 \
+            --set-env-vars \
+              "JWT_SECRET=$JWT_SECRET" \
+              "DB_URL=jdbc:postgresql://cafeorbe-pg.postgres.database.azure.com:5432/streaming_db" \
+              "DB_USER=cafeorbe" \
+              "DB_PASSWORD=$DB_PASSWORD" \
+              "RABBIT_HOST=toucan.lmq.cloudamqp.com" \
+              "RABBIT_PORT=5671" \
+              "RABBIT_USER=ebmfpsvi" \
+              "RABBIT_PASSWORD=$RABBIT_PASSWORD" \
+              "RABBIT_VHOST=ebmfpsvi" \
+              "RABBIT_SSL=true" \
+              "AUCTION_URL=https://auction-service.blackbay-48700ead.eastus2.azurecontainerapps.io" \
+              "LIVEKIT_URL=$LIVEKIT_URL" \
+              "LIVEKIT_API_KEY=$LIVEKIT_API_KEY" \
+              "LIVEKIT_API_SECRET=$LIVEKIT_API_SECRET"
+
 
       - name: Smoke test
         run: |
@@ -218,62 +192,36 @@ jobs:
 
           az extension add --name containerapp --upgrade --only-show-errors
 
-          if az containerapp show \
+          if ! az containerapp show \
               --name "$APP_NAME" \
               --resource-group "$RESOURCE_GROUP" \
               --only-show-errors >/dev/null 2>&1; then
-
-            az containerapp update \
-              --name "$APP_NAME" \
-              --resource-group "$RESOURCE_GROUP" \
-              --image "$IMAGE" \
-              --min-replicas 1 \
-              --set-env-vars \
-                "JWT_SECRET=$JWT_SECRET" \
-                "DB_URL=jdbc:postgresql://cafeorbe-pg.postgres.database.azure.com:5432/streaming_db" \
-                "DB_USER=cafeorbe" \
-                "DB_PASSWORD=$DB_PASSWORD" \
-                "RABBIT_HOST=toucan.lmq.cloudamqp.com" \
-                "RABBIT_PORT=5671" \
-                "RABBIT_USER=ebmfpsvi" \
-                "RABBIT_PASSWORD=$RABBIT_PASSWORD" \
-                "RABBIT_VHOST=ebmfpsvi" \
-                "RABBIT_SSL=true" \
-                "AUCTION_URL=https://auction-service-prod.thankfulmoss-4f48ec41.eastus2.azurecontainerapps.io" \
-                "LIVEKIT_URL=$LIVEKIT_URL" \
-                "LIVEKIT_API_KEY=$LIVEKIT_API_KEY" \
-                "LIVEKIT_API_SECRET=$LIVEKIT_API_SECRET"
-
-          else
-
-            az containerapp create \
-              --name "$APP_NAME" \
-              --resource-group "$RESOURCE_GROUP" \
-              --environment "$CONTAINER_ENV" \
-              --image "$IMAGE" \
-              --ingress external \
-              --target-port 8084 \
-              --min-replicas 1 \
-              --registry-server "${{ vars.ACR_NAME }}.azurecr.io" \
-              --registry-username "${{ secrets.ACR_USERNAME }}" \
-              --registry-password "${{ secrets.ACR_PASSWORD }}" \
-              --env-vars \
-                "JWT_SECRET=$JWT_SECRET" \
-                "DB_URL=jdbc:postgresql://cafeorbe-pg.postgres.database.azure.com:5432/streaming_db" \
-                "DB_USER=cafeorbe" \
-                "DB_PASSWORD=$DB_PASSWORD" \
-                "RABBIT_HOST=toucan.lmq.cloudamqp.com" \
-                "RABBIT_PORT=5671" \
-                "RABBIT_USER=ebmfpsvi" \
-                "RABBIT_PASSWORD=$RABBIT_PASSWORD" \
-                "RABBIT_VHOST=ebmfpsvi" \
-                "RABBIT_SSL=true" \
-                "AUCTION_URL=https://auction-service-prod.thankfulmoss-4f48ec41.eastus2.azurecontainerapps.io" \
-                "LIVEKIT_URL=$LIVEKIT_URL" \
-                "LIVEKIT_API_KEY=$LIVEKIT_API_KEY" \
-                "LIVEKIT_API_SECRET=$LIVEKIT_API_SECRET"
-
+            echo "La app $APP_NAME no existe en $RESOURCE_GROUP."
+            echo "Provisionar apps es tarea de cafeorbe-infra, no de este pipeline."
+            exit 1
           fi
+
+          az containerapp update \
+            --name "$APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --image "$IMAGE" \
+            --min-replicas 1 \
+            --set-env-vars \
+              "JWT_SECRET=$JWT_SECRET" \
+              "DB_URL=jdbc:postgresql://cafeorbe-pg.postgres.database.azure.com:5432/streaming_db" \
+              "DB_USER=cafeorbe" \
+              "DB_PASSWORD=$DB_PASSWORD" \
+              "RABBIT_HOST=toucan.lmq.cloudamqp.com" \
+              "RABBIT_PORT=5671" \
+              "RABBIT_USER=ebmfpsvi" \
+              "RABBIT_PASSWORD=$RABBIT_PASSWORD" \
+              "RABBIT_VHOST=ebmfpsvi" \
+              "RABBIT_SSL=true" \
+              "AUCTION_URL=https://auction-service-prod.thankfulmoss-4f48ec41.eastus2.azurecontainerapps.io" \
+              "LIVEKIT_URL=$LIVEKIT_URL" \
+              "LIVEKIT_API_KEY=$LIVEKIT_API_KEY" \
+              "LIVEKIT_API_SECRET=$LIVEKIT_API_SECRET"
+
 
       - name: Smoke test
         run: |
