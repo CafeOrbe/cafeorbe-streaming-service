@@ -35,15 +35,6 @@ public class Auditoria {
                 .log("Evento de seguridad: {} ({})", evento, motivo);
     }
 
-    public void exito(String evento, String usuario) {
-        metricas.counter("cafeorbe.seguridad.eventos", "evento", evento, "motivo", "ok").increment();
-        log.atInfo()
-                .addKeyValue("evento", evento)
-                .addKeyValue("usuario", usuario)
-                .addKeyValue("correlationId", MDC.get(FiltroDeCorrelacion.MDC_CLAVE))
-                .log("Evento de seguridad: {}", evento);
-    }
-
     /** IP del cliente: la primera de X-Forwarded-For (la agrega el ingress y el api-gateway) o la del socket. */
     public static String ipDe(HttpServletRequest peticion) {
         String reenviada = peticion.getHeader("X-Forwarded-For");
