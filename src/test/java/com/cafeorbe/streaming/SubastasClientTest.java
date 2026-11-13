@@ -52,7 +52,7 @@ class SubastasClientTest {
     }
 
     private SubastasClient cliente() {
-        return new SubastasClient("http://localhost:" + servidor.getAddress().getPort(), 1000, 2000);
+        return new SubastasClient("http://localhost:" + servidor.getAddress().getPort(), 1000, 2000, "credencial-de-prueba");
     }
 
     @Test
@@ -84,7 +84,7 @@ class SubastasClientTest {
     @Test
     @DisplayName("Auction caído → 503, nunca se transmite sin verificar")
     void auctionCaido() {
-        SubastasClient sinServidor = new SubastasClient("http://localhost:1", 300, 300);
+        SubastasClient sinServidor = new SubastasClient("http://localhost:1", 300, 300, "credencial-de-prueba");
 
         assertThatThrownBy(() -> sinServidor.consultar(SUBASTA, USUARIO))
                 .isInstanceOf(ErrorDeNegocio.class)

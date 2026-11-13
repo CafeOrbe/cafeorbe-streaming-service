@@ -9,9 +9,16 @@ spring:
         auto-startup: false
 
 cafeorbe:
+  seguridad:
+    credencial-interna: credencial-de-prueba
   outbox:
     scheduler: false
   transmision:
     scheduler: false
   livekit:
     api-url: http://localhost:1
+
+logging:
+  structured:
+    format:
+      console: ""

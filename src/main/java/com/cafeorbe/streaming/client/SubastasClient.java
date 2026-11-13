@@ -35,11 +35,14 @@ public class SubastasClient {
 
     public SubastasClient(@Value("${cafeorbe.auction.url}") String url,
                           @Value("${cafeorbe.auction.connect-timeout-ms:1000}") int conexionMs,
-                          @Value("${cafeorbe.auction.read-timeout-ms:2000}") int lecturaMs) {
+                          @Value("${cafeorbe.auction.read-timeout-ms:2000}") int lecturaMs,
+                          @Value("${cafeorbe.seguridad.credencial-interna}") String credencial) {
         var fabrica = new SimpleClientHttpRequestFactory();
         fabrica.setConnectTimeout(conexionMs);
         fabrica.setReadTimeout(lecturaMs);
-        this.cliente = RestClient.builder().baseUrl(url).requestFactory(fabrica).build();
+        // SEG-02: auction exige la credencial interna.
+        this.cliente = RestClient.builder().baseUrl(url).requestFactory(fabrica)
+                .defaultHeader("X-Internal-Token", credencial).build();
     }
 
     /**
