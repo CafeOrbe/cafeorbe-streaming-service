@@ -31,7 +31,6 @@ public class Auditoria {
                 .addKeyValue("usuario", usuario == null ? "desconocido" : usuario)
                 .addKeyValue("ip", ipDe(peticion))
                 .addKeyValue("ruta", peticion.getRequestURI())
-                .addKeyValue("correlationId", MDC.get(FiltroDeCorrelacion.MDC_CLAVE))
                 .log("Evento de seguridad: {} ({})", evento, motivo);
     }
 
