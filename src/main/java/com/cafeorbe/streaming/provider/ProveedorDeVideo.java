@@ -1,5 +1,6 @@
 package com.cafeorbe.streaming.provider;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -26,9 +27,12 @@ public interface ProveedorDeVideo {
      * @param participanteId  identidad del participante (el id del usuario de CaféOrbe), o {@code null}
      * @param participanteSid id de la sesión del participante en el proveedor, o {@code null}
      * @param pistaDeVideo    {@code true} si el evento es sobre una pista de video
+     * @param salaSid         id de esta sala en el proveedor (cambia cada vez que la sala se vuelve a crear),
+     *                        o {@code null}; distingue una transmisión de la anterior con el mismo nombre de sala
+     * @param creadoEn        cuándo generó el proveedor el evento, o {@code null}
      */
     record EventoDeSala(TipoEventoDeSala tipo, UUID subastaId, String participanteId, String participanteSid,
-                        boolean pistaDeVideo) {
+                        boolean pistaDeVideo, String salaSid, Instant creadoEn) {
     }
 
     /** El webhook no viene firmado por el proveedor (o la firma no coincide con el cuerpo). */

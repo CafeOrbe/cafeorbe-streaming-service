@@ -185,7 +185,22 @@ public class LiveKitProveedor implements ProveedorDeVideo {
         JsonNode participante = evento.path("participant");
         String tipoDePista = evento.path("track").path("type").asText("");
         return Optional.of(new EventoDeSala(tipo, subastaId, texto(participante.path("identity")),
-                texto(participante.path("sid")), "VIDEO".equals(tipoDePista) || "1".equals(tipoDePista)));
+                texto(participante.path("sid")), "VIDEO".equals(tipoDePista) || "1".equals(tipoDePista),
+                texto(evento.path("room").path("sid")), segundosEpoch(evento.path("createdAt"))));
+    }
+
+    /** LiveKit envía {@code createdAt} en segundos desde 1970, como número o como texto (int64 de protobuf). */
+    static Instant segundosEpoch(JsonNode nodo) {
+        String valor = texto(nodo);
+        if (valor == null) {
+            return null;
+        }
+        try {
+            long segundos = Long.parseLong(valor.trim());
+            return segundos > 0 ? Instant.ofEpochSecond(segundos) : null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     /**
