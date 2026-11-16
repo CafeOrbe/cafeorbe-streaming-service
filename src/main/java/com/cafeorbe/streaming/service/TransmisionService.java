@@ -39,16 +39,19 @@ public class TransmisionService {
     private final OutboxWriter eventos;
     private final Clock reloj;
     private final Duration gracia;
+    private final Duration graciaInicio;
 
     public TransmisionService(TransmisionRepository transmisiones, ProveedorDeVideo video, SubastasClient subastas,
                               OutboxWriter eventos, Clock reloj,
-                              @Value("${cafeorbe.transmision.gracia-segundos}") long graciaSegundos) {
+                              @Value("${cafeorbe.transmision.gracia-segundos}") long graciaSegundos,
+                              @Value("${cafeorbe.transmision.gracia-inicio-segundos:60}") long graciaInicioSegundos) {
         this.transmisiones = transmisiones;
         this.video = video;
         this.subastas = subastas;
         this.eventos = eventos;
         this.reloj = reloj;
         this.gracia = Duration.ofSeconds(graciaSegundos);
+        this.graciaInicio = Duration.ofSeconds(Math.max(graciaInicioSegundos, graciaSegundos));
     }
 
     /**
@@ -70,10 +73,18 @@ public class TransmisionService {
         Transmision t = transmisiones.findById(subastaId).orElseGet(() -> new Transmision(subastaId, usuario.id()));
         boolean cambio = !t.isActiva();
         if (cambio) {
-            t.iniciar(usuario.id(), reloj.instant());
+            Instant ahora = reloj.instant();
+            t.iniciar(usuario.id(), ahora);
+            // Plazo para que llegue el primer video: si el emisor nunca se conecta, se detiene sola.
+            // detenerAbandonadas usa "ausente desde + gracia", así que se corre el inicio para dar graciaInicio.
+            t.esperarPrimerVideo(ahora.plus(graciaInicio).minus(gracia));
             transmisiones.save(t);
             eventos.registrar(Eventos.TRANSMISION_INICIADA,
                     new TransmisionIniciada(subastaId, video.nombreDeSala(subastaId)));
+        } else if (t.getEmisorSid() == null) {
+            // Aún no llegó su primer video (p. ej. reintenta iniciar): se le vuelve a dar el plazo de inicio completo.
+            t.esperarPrimerVideo(reloj.instant().plus(graciaInicio).minus(gracia));
+            transmisiones.save(t);
         } else if (t.getEmisorAusenteDesde() != null) {
             // Vuelve tras un corte: se le da el plazo completo para publicar de nuevo antes de detener.
             t.emisorReconectando(reloj.instant());
@@ -115,6 +126,9 @@ public class TransmisionService {
      *   <li>Hallazgo 12: si el Subastador cierra la pestaña o pierde la conexión, LiveKit avisa que salió.
      *       No se detiene al instante: un microcorte de red también llega así, y cortar ahí dejaba a todos sin
      *       video. Se anota la ausencia y {@link #detenerAbandonadas} la detiene si no vuelve a publicar a tiempo.</li>
+     *   <li>Webhooks tardíos: el cierre de sala solo detiene la transmisión si es de su misma sala (SID) o,
+     *       sin SID todavía, si se generó después de iniciarla. Así un aviso atrasado de la transmisión anterior
+     *       no corta la nueva.</li>
      *   <li>Hallazgo 16: si alguien publica video sin una transmisión activa suya (por ejemplo, con un token
      *       viejo tras detener), se le saca de la sala.</li>
      * </ul>
@@ -127,7 +141,7 @@ public class TransmisionService {
                 boolean autorizado = t != null && t.isActiva() && evento.participanteId() != null
                         && t.getSubastadorId().toString().equals(evento.participanteId());
                 if (autorizado) {
-                    t.registrarEmisor(evento.participanteSid());
+                    t.registrarEmisor(evento.participanteSid(), evento.salaSid());
                     transmisiones.save(t);
                 } else if (evento.participanteId() != null) {
                     log.warn("Se expulsa a {} de la sala de la subasta {}: publicó video sin transmisión activa",
@@ -146,8 +160,11 @@ public class TransmisionService {
                 }
             }
             case SALA_CERRADA -> {
-                if (t != null && t.isActiva()) {
+                if (t != null && t.esDeEstaTransmision(evento.salaSid(), evento.creadoEn())) {
                     detenerYAvisar(t);
+                } else if (t != null && t.isActiva()) {
+                    log.info("Subasta {}: se ignora el cierre de la sala {} porque es de una transmisión anterior",
+                            evento.subastaId(), evento.salaSid());
                 }
             }
             case OTRO -> {

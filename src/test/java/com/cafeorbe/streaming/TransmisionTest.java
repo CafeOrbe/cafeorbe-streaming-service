@@ -132,9 +132,14 @@ class TransmisionTest {
     }
 
     private static String evento(String tipo, UUID usuario, String sid, String pista) {
+        return evento(tipo, usuario, sid, pista, "RM_1", Instant.now().getEpochSecond());
+    }
+
+    /** Evento de LiveKit con el SID de la sala y la hora (en segundos) en que lo generó. */
+    private static String evento(String tipo, UUID usuario, String sid, String pista, String salaSid, long creadoEn) {
         String track = pista == null ? "" : ",\"track\":{\"sid\":\"TR_1\",\"type\":\"" + pista + "\"}";
-        return "{\"event\":\"" + tipo + "\",\"id\":\"EV_1\",\"createdAt\":\"1790000000\","
-                + "\"room\":{\"name\":\"subasta-" + SUBASTA + "\"},"
+        return "{\"event\":\"" + tipo + "\",\"id\":\"EV_1\",\"createdAt\":\"" + creadoEn + "\","
+                + "\"room\":{\"name\":\"subasta-" + SUBASTA + "\",\"sid\":\"" + salaSid + "\"},"
                 + "\"participant\":{\"sid\":\"" + sid + "\",\"identity\":\"" + usuario + "\"}" + track + "}";
     }
 
@@ -437,6 +442,67 @@ class TransmisionTest {
         verify(proveedor).cerrarSala(SUBASTA);
         estadoEsperado(false);
         assertThat(tiposEnOutbox()).contains(Eventos.TRANSMISION_DETENIDA);
+    }
+
+    // ── Webhooks tardíos e inicio sin emisor ─────────────────────────────
+
+    private void detenerComoLuis() throws Exception {
+        mvc.perform(como(post(url("detener")), LUIS, "Luis", "SUBASTADOR")).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("Reinicio · Un room_finished atrasado de la sala anterior no detiene la transmisión nueva")
+    void webhookTardioNoDetieneLaNueva() throws Exception {
+        long antes = Instant.now().minusSeconds(30).getEpochSecond();
+        iniciarComoLuis();
+        webhook(evento("track_published", LUIS, "PA_1", "VIDEO", "RM_vieja", antes)).andExpect(status().isOk());
+        detenerComoLuis();
+
+        // Se reinicia antes de que llegue el aviso de cierre de la sala vieja.
+        iniciarComoLuis();
+        webhook(evento("room_finished", LUIS, "PA_1", null, "RM_vieja", antes)).andExpect(status().isOk());
+        estadoEsperado(true);
+
+        // Ya publica en la sala nueva: un aviso viejo, aunque llegue con hora reciente, tampoco la detiene.
+        webhook(evento("track_published", LUIS, "PA_2", "VIDEO", "RM_nueva", Instant.now().getEpochSecond()))
+                .andExpect(status().isOk());
+        webhook(evento("room_finished", LUIS, "PA_1", null, "RM_vieja", Instant.now().getEpochSecond()))
+                .andExpect(status().isOk());
+        estadoEsperado(true);
+        assertThat(transmisiones.findById(SUBASTA).orElseThrow().getSalaSid()).isEqualTo("RM_nueva");
+
+        // El cierre de su propia sala sí la detiene.
+        webhook(evento("room_finished", LUIS, "PA_2", null, "RM_nueva", Instant.now().getEpochSecond()))
+                .andExpect(status().isOk());
+        estadoEsperado(false);
+        assertThat(tiposEnOutbox()).containsExactly(Eventos.TRANSMISION_INICIADA, Eventos.TRANSMISION_DETENIDA,
+                Eventos.TRANSMISION_INICIADA, Eventos.TRANSMISION_DETENIDA);
+    }
+
+    @Test
+    @DisplayName("Inicio sin emisor · Si el Subastador inicia pero nunca publica video, la transmisión se detiene al vencer el plazo")
+    void inicioSinEmisorSeDetiene() throws Exception {
+        iniciarComoLuis();
+
+        // Dentro del plazo de inicio (60 s) se le sigue esperando.
+        assertThat(pasan(30)).isZero();
+        estadoEsperado(true);
+
+        assertThat(pasan(61)).isEqualTo(1);
+        estadoEsperado(false);
+        assertThat(tiposEnOutbox()).containsExactly(Eventos.TRANSMISION_INICIADA, Eventos.TRANSMISION_DETENIDA);
+        verify(proveedor).cerrarSala(SUBASTA);
+    }
+
+    @Test
+    @DisplayName("Inicio sin emisor · En cuanto llega el video se cancela el plazo y la transmisión sigue")
+    void videoCancelaElPlazoDeInicio() throws Exception {
+        iniciarComoLuis();
+        webhook(evento("track_published", LUIS, "PA_1", "VIDEO")).andExpect(status().isOk());
+
+        assertThat(pasan(120)).isZero();
+        estadoEsperado(true);
+        assertThat(transmisiones.findById(SUBASTA).orElseThrow().getEmisorAusenteDesde()).isNull();
     }
 
     @Test

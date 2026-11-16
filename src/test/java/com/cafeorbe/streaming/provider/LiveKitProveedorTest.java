@@ -287,6 +287,24 @@ class LiveKitProveedorTest {
         }
 
         @Test
+        @DisplayName("Webhooks tardíos · El evento trae el SID de la sala y la hora en que LiveKit lo generó")
+        void salaSidYFecha() {
+            var evento = leer("{\"event\":\"room_finished\",\"createdAt\":\"1790000000\","
+                    + "\"room\":{\"name\":\"subasta-" + SUBASTA + "\",\"sid\":\"RM_1\"}}").orElseThrow();
+            assertThat(evento.salaSid()).isEqualTo("RM_1");
+            assertThat(evento.creadoEn()).isEqualTo(java.time.Instant.ofEpochSecond(1790000000L));
+
+            var numerico = leer("{\"event\":\"room_finished\",\"createdAt\":1790000001,"
+                    + "\"room\":{\"name\":\"subasta-" + SUBASTA + "\"}}").orElseThrow();
+            assertThat(numerico.salaSid()).isNull();
+            assertThat(numerico.creadoEn()).isEqualTo(java.time.Instant.ofEpochSecond(1790000001L));
+
+            var sinFecha = leer("{\"event\":\"room_finished\",\"createdAt\":\"no-es-numero\","
+                    + "\"room\":{\"name\":\"subasta-" + SUBASTA + "\"}}").orElseThrow();
+            assertThat(sinFecha.creadoEn()).isNull();
+        }
+
+        @Test
         @DisplayName("Un evento desconocido se marca como OTRO, no se descarta")
         void eventoDesconocido() {
             var evento = leer("{\"event\":\"track_muted\",\"room\":{\"name\":\"subasta-" + SUBASTA + "\"}}")
