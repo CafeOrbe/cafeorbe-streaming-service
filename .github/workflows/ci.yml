@@ -214,11 +214,22 @@ jobs:
           OTLP_METRICS_AUTH: ${{ secrets.OTLP_METRICS_AUTH }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           RABBIT_PASSWORD: ${{ secrets.RABBIT_PASSWORD }}
+          # PROD usa su propio PostgreSQL (variable DB_HOST del ambiente PROD de GitHub).
+          DB_HOST: ${{ vars.DB_HOST }}
+          # PROD usa su propio broker: variables PROD_RABBIT_* y secreto RABBIT_PASSWORD del ambiente PROD.
+          PROD_RABBIT_HOST: ${{ vars.PROD_RABBIT_HOST }}
+          PROD_RABBIT_USER: ${{ vars.PROD_RABBIT_USER }}
+          PROD_RABBIT_VHOST: ${{ vars.PROD_RABBIT_VHOST }}
           LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
           LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
           LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
         run: |
           set -euo pipefail
+          [[ "${DB_HOST:-}" == *-prod.* ]] || { echo "DB_HOST de PROD no apunta al PostgreSQL de PROD (variable DB_HOST del ambiente PROD)"; exit 1; }
+          : "${PROD_RABBIT_HOST:?Falta la variable PROD_RABBIT_HOST en el ambiente PROD de GitHub}"
+          : "${PROD_RABBIT_USER:?Falta la variable PROD_RABBIT_USER en el ambiente PROD de GitHub}"
+          : "${PROD_RABBIT_VHOST:?Falta la variable PROD_RABBIT_VHOST en el ambiente PROD de GitHub}"
+          [[ "$PROD_RABBIT_VHOST" != "ebmfpsvi" ]] || { echo "PROD no puede usar el broker de QA"; exit 1; }
 
           # Sin estos valores el servicio arranca, pero QA queda roto: mejor fallar aquí con un mensaje claro.
           : "${INTERNAL_TOKEN:?Falta el secreto INTERNAL_TOKEN en GitHub (el mismo en los 6 repositorios)}"
@@ -250,14 +261,14 @@ jobs:
               "OTLP_METRICS_ENABLED=$OTLP_METRICS_ENABLED" \
               "OTLP_METRICS_URL=$OTLP_METRICS_URL" \
               "OTLP_METRICS_AUTH=$OTLP_METRICS_AUTH" \
-              "DB_URL=jdbc:postgresql://cafeorbe-pg.postgres.database.azure.com:5432/streaming_db" \
+              "DB_URL=jdbc:postgresql://${DB_HOST}:5432/streaming_db" \
               "DB_USER=cafeorbe" \
               "DB_PASSWORD=$DB_PASSWORD" \
-              "RABBIT_HOST=toucan.lmq.cloudamqp.com" \
+              "RABBIT_HOST=$PROD_RABBIT_HOST" \
               "RABBIT_PORT=5671" \
-              "RABBIT_USER=ebmfpsvi" \
+              "RABBIT_USER=$PROD_RABBIT_USER" \
               "RABBIT_PASSWORD=$RABBIT_PASSWORD" \
-              "RABBIT_VHOST=ebmfpsvi" \
+              "RABBIT_VHOST=$PROD_RABBIT_VHOST" \
               "RABBIT_SSL=true" \
               "AUCTION_URL=https://auction-service-prod.thankfulmoss-4f48ec41.eastus2.azurecontainerapps.io" \
               "LIVEKIT_URL=$LIVEKIT_URL" \
